@@ -66,7 +66,7 @@ public class GroupsController {
         }
         startIndex -=1;
 
-        PageRequest pageRequest = new PageRequest(startIndex, count);
+        PageRequest pageRequest = PageRequest.of(startIndex, count);
 
         String filter = params.get("filter");
         if (filter != null && filter.contains("eq")) {
@@ -104,7 +104,7 @@ public class GroupsController {
         ArrayList<HashMap<String, Object>> resGN = new ArrayList<>();
 
         for (HashMap<String, Object> g: resG) {
-            PageRequest pReq = new PageRequest(0, Integer.MAX_VALUE);
+            PageRequest pReq = PageRequest.of(0, Integer.MAX_VALUE);
             Page<GroupMembership> pg = gmDb.findByGroupId(g.get("id").toString(), pReq);
 
             if (!pg.hasContent()) {

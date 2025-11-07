@@ -45,7 +45,7 @@ public class SingleGroupController {
             Group group = db.findById(id).get(0);
             HashMap res = group.toScimResource();
 
-            PageRequest pageRequest = new PageRequest(0, Integer.MAX_VALUE);
+            PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
             Page<GroupMembership> gmPage = gmDb.findByGroupId(id, pageRequest);
             List<GroupMembership> gmList = gmPage.getContent();
             ArrayList<Map<String, Object>> gmAL = new ArrayList<>();
@@ -142,7 +142,7 @@ public class SingleGroupController {
 
                 if (value != null && !value.isEmpty()) {
                     for (Map val: value) {
-                        PageRequest pageRequest = new PageRequest(0, Integer.MAX_VALUE);
+                        PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
                         Page<GroupMembership> gmPage = gmDb.findByGroupIdAndUserId(id, val.get("userId").toString(), pageRequest);
 
                         if (gmPage.hasContent()) {
@@ -158,7 +158,7 @@ public class SingleGroupController {
             }
         }
 
-        PageRequest pageRequest = new PageRequest(0, Integer.MAX_VALUE);
+        PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
         Page<GroupMembership> gms = gmDb.findByGroupId(id, pageRequest);
         List<GroupMembership> gmList = gms.getContent();
         ArrayList<Map<String, Object>> gmAL = new ArrayList<>();
