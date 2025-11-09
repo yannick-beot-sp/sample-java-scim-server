@@ -153,9 +153,9 @@ get all users from your app into the system).
 Below is how the sample application handles listing user resources,
 with support for filtering and pagination:
 
+```java
    @RequestMapping(method = RequestMethod.GET)
    public @ResponseBody Map usersGet(@RequestParam Map<String, String> params) {
-```java
         Page<User> users;
 
         // If not given count, default to 100

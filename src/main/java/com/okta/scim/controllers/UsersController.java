@@ -115,18 +115,16 @@ public class UsersController {
             PageRequest           pReq = PageRequest.of(0, Integer.MAX_VALUE);
             Page<GroupMembership> pg   = gmDb.findByUserId(u.get("id").toString(), pReq);
 
-            if (!pg.hasContent()) {
-                continue;
+            if (pg.hasContent()) {
+                List<GroupMembership> gmList = pg.getContent();
+                ArrayList<Map<String, Object>> gms = new ArrayList<>();
+
+                for (GroupMembership gm : gmList) {
+                    gms.add(gm.toUserScimResource());
+                }
+
+                u.put("groups", gms);
             }
-
-            List<GroupMembership> gmList = pg.getContent();
-            ArrayList<Map<String, Object>> gms = new ArrayList<>();
-
-            for (GroupMembership gm: gmList) {
-                gms.add(gm.toUserScimResource());
-            }
-
-            u.put("groups", gms);
             resGN.add(u);
         }
 
