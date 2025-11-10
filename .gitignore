@@ -54,4 +54,6 @@ buildNumber.properties
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
-data.*
+data.lck
+data.script
+data.properties

@@ -134,11 +134,13 @@ public class SingleGroupController {
                     db.save(group);
                 }
             } else if (map.get("op").equals("add")) {
-                if (!map.get("path").equals("members")) {
-                    continue;
+                List<Map<String, Object>> value = null;
+                if ("members".equals(map.get("path"))) {
+                    value = (List) map.get("value");
+                } else if ((map.get("value") instanceof Map) && ((Map<?,?>)map.get("value")).containsKey("members")) {
+                    value = Arrays.asList((Map<String,Object>)((Map<String,Object>)map.get("value")).get("members"));
                 }
 
-                ArrayList<Map<String, Object>> value = (ArrayList) map.get("value");
 
                 if (value != null && !value.isEmpty()) {
                     for (Map val: value) {
