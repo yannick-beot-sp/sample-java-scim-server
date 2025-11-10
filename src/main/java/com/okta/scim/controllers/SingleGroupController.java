@@ -16,7 +16,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- *  URL route (root)/scim/v2/Groups/{id}
+ * URL route (root)/scim/v2/Groups/{id}
  */
 @Controller
 @RequestMapping("/scim/v2/Groups/{id}")
@@ -33,7 +33,8 @@ public class SingleGroupController {
     /**
      * Queries database for {@link Group} with identifier
      * Updates response code with '404' if unable to locate {@link Group}
-     * @param id {@link Group#id}
+     *
+     * @param id       {@link Group#id}
      * @param response HTTP Response
      * @return {@link #scimError(String, Optional)} / JSON {@link Map} of {@link Group}
      */
@@ -50,7 +51,7 @@ public class SingleGroupController {
             List<GroupMembership> gmList = gmPage.getContent();
             ArrayList<Map<String, Object>> gmAL = new ArrayList<>();
 
-            for (GroupMembership gm: gmList) {
+            for (GroupMembership gm : gmList) {
                 gmAL.add(gm.toScimResource());
             }
 
@@ -64,8 +65,9 @@ public class SingleGroupController {
 
     /**
      * Update via Put {@link Group} attributes
+     *
      * @param payload Payload from HTTP request
-     * @param id {@link Group#id}
+     * @param id      {@link Group#id}
      * @return JSON {@link Map} of {@link Group}
      */
     @RequestMapping(method = RequestMethod.PUT)
@@ -78,26 +80,27 @@ public class SingleGroupController {
 
     /**
      * Update via Patch {@link Group} attributes
+     *
      * @param payload Payload from HTTP request
-     * @param id {@link Group#id}
+     * @param id      {@link Group#id}
      * @return {@link #scimError(String, Optional)} / JSON {@link Map} of {@link Group}
      */
     @RequestMapping(method = RequestMethod.PATCH)
     public @ResponseBody Map singleGroupPatch(@RequestBody Map<String, Object> payload,
                                               @PathVariable String id) {
-        List schema = (List)payload.get("schemas");
-        List<Map> operations = (List)payload.get("Operations");
+        List schema = (List) payload.get("schemas");
+        List<Map> operations = (List) payload.get("Operations");
 
-        if(schema == null){
+        if (schema == null) {
             return scimError("Payload must contain schema attribute.", Optional.of(400));
         }
-        if(operations == null){
+        if (operations == null) {
             return scimError("Payload must contain operations attribute.", Optional.of(400));
         }
 
         //Verify schema
         String schemaPatchOp = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
-        if (!schema.contains(schemaPatchOp)){
+        if (!schema.contains(schemaPatchOp)) {
             return scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
         }
 
@@ -112,8 +115,8 @@ public class SingleGroupController {
 
         HashMap res = group.toScimResource();
 
-        for(Map map : operations){
-            if(map.get("op")==null){
+        for (Map map : operations) {
+            if (map.get("op") == null) {
                 continue;
             }
 
@@ -137,13 +140,13 @@ public class SingleGroupController {
                 List<Map<String, Object>> value = null;
                 if ("members".equals(map.get("path"))) {
                     value = (List) map.get("value");
-                } else if ((map.get("value") instanceof Map) && ((Map<?,?>)map.get("value")).containsKey("members")) {
-                    value = Arrays.asList((Map<String,Object>)((Map<String,Object>)map.get("value")).get("members"));
+                } else if ((map.get("value") instanceof Map) && ((Map<?, ?>) map.get("value")).containsKey("members")) {
+                    value = Arrays.asList((Map<String, Object>) ((Map<String, Object>) map.get("value")).get("members"));
                 }
 
 
                 if (value != null && !value.isEmpty()) {
-                    for (Map val: value) {
+                    for (Map val : value) {
                         PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
                         Page<GroupMembership> gmPage = gmDb.findByGroupIdAndUserId(id, val.get("value").toString(), pageRequest);
 
@@ -157,6 +160,22 @@ public class SingleGroupController {
                         gmDb.save(gm);
                     }
                 }
+            } else if (map.get("op").equals("remove")) {
+                List<Map<String, Object>> value = null;
+                if ((map.get("value") instanceof Map) && ((Map<?, ?>) map.get("value")).containsKey("members")) {
+                    value = Arrays.asList((Map<String, Object>) ((Map<String, Object>) map.get("value")).get("members"));
+                }
+                if (value != null && !value.isEmpty()) {
+                    for (Map val : value) {
+                        PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
+                        Page<GroupMembership> gmPage = gmDb.findByGroupIdAndUserId(id, val.get("value").toString(), pageRequest);
+
+                        if (!gmPage.hasContent()) {
+                            continue;
+                        }
+                        gmDb.deleteAll(gmPage.getContent());
+                    }
+                }
             }
         }
 
@@ -165,7 +184,7 @@ public class SingleGroupController {
         List<GroupMembership> gmList = gms.getContent();
         ArrayList<Map<String, Object>> gmAL = new ArrayList<>();
 
-        for (GroupMembership gm: gmList) {
+        for (GroupMembership gm : gmList) {
             gmAL.add(gm.toScimResource());
         }
 
@@ -176,11 +195,12 @@ public class SingleGroupController {
 
     /**
      * Output custom error message with response code
-     * @param message Scim error message
+     *
+     * @param message     Scim error message
      * @param status_code Response status code
      * @return JSON {@link Map} of {@link Group}
      */
-    public Map scimError(String message, Optional<Integer> status_code){
+    public Map scimError(String message, Optional<Integer> status_code) {
 
         Map<String, Object> returnValue = new HashMap<>();
         List<String> schemas = new ArrayList<>();
