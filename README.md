@@ -988,6 +988,26 @@ server depends on - located in the `pom.xml` file.
 </dependency>
 ```
 
+# Development
+
+2 Maven Profiles are used to manage Tomcat dependencies:
+
+- `local`: to use locally. Tomcat dependencies are included
+- `package`: to use locally. Tomcat dependencies are provided, in Maven sense.
+
+To create a war:
+
+```
+mvn -P package package
+```
+
+# Todo
+
+- [ ] Supports other attributes (`displayName`, etc.) as proposed in the core schema
+- Upgrade dependencies to latest version (Spring Boot, etc.)
+- Allow to manage data from the Web interface
+- Support different authentication schemes
+
 # License information
 
     Copyright © 2018, Okta, Inc.
