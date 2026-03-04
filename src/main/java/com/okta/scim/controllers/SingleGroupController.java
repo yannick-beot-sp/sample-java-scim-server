@@ -6,6 +6,7 @@ import com.okta.scim.database.UserDatabase;
 import com.okta.scim.models.Group;
 import com.okta.scim.models.GroupMembership;
 import com.okta.scim.models.User;
+import com.okta.scim.utils.ScimUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -65,7 +66,7 @@ public class SingleGroupController {
             return res;
         } catch (Exception e) {
             response.setStatus(404);
-            return scimError("Group not found", Optional.of(404));
+            return ScimUtils.scimError("Group not found", Optional.of(404));
         }
     }
 
@@ -98,23 +99,23 @@ public class SingleGroupController {
         List<Map> operations = (List) payload.get("Operations");
 
         if (schema == null) {
-            return scimError("Payload must contain schema attribute.", Optional.of(400));
+            return ScimUtils.scimError("Payload must contain schema attribute.", Optional.of(400));
         }
         if (operations == null) {
-            return scimError("Payload must contain operations attribute.", Optional.of(400));
+            return ScimUtils.scimError("Payload must contain operations attribute.", Optional.of(400));
         }
 
         //Verify schema
         String schemaPatchOp = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
         if (!schema.contains(schemaPatchOp)) {
-            return scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
+            return ScimUtils.scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
         }
 
         List<Group> byId = db.findById(id);
         int found = byId.size();
 
         if (found == 0) {
-            return scimError("Group '" + id + "' was not found.", Optional.of(404));
+            return ScimUtils.scimError("Group '" + id + "' was not found.", Optional.of(404));
         }
 
         //Find user for update
@@ -207,23 +208,4 @@ public class SingleGroupController {
         return res;
     }
 
-    /**
-     * Output custom error message with response code
-     *
-     * @param message     Scim error message
-     * @param status_code Response status code
-     * @return JSON {@link Map} of {@link Group}
-     */
-    public Map scimError(String message, Optional<Integer> status_code) {
-
-        Map<String, Object> returnValue = new HashMap<>();
-        List<String> schemas = new ArrayList<>();
-        schemas.add("urn:ietf:params:scim:api:messages:2.0:Error");
-        returnValue.put("schemas", schemas);
-        returnValue.put("detail", message);
-
-        // Set default to 500
-        returnValue.put("status", status_code.orElse(500));
-        return returnValue;
-    }
 }
