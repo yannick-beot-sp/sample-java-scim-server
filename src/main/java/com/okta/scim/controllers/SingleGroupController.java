@@ -164,14 +164,18 @@ public class SingleGroupController {
                         if (gmPage.hasContent()) {
                             continue;
                         }
-                        userDb.findById(userId);
+                        List<User> users = userDb.findById(userId);
+                        if (users == null || users.size() != 1) {
+                            return ScimUtils.scimError("User not found", Optional.of(400));
+                        }
+                        User user = users.get(0);
 
 
                         GroupMembership gm = new GroupMembership(val);
                         gm.id = UUID.randomUUID().toString();
                         gm.groupId = id;
                         gm.groupDisplay = group.displayName;
-
+                        gm.userDisplay = user.displayName;
                         gmDb.save(gm);
                     }
                 }
