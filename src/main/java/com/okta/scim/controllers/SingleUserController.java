@@ -15,6 +15,8 @@
 
 package com.okta.scim.controllers;
 
+import com.okta.scim.database.DbUtils;
+import com.okta.scim.database.GroupMembershipDatabase;
 import com.okta.scim.database.UserDatabase;
 import com.okta.scim.models.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +33,13 @@ import java.util.*;
 @Controller
 @RequestMapping("/scim/v2/Users/{id}")
 public class SingleUserController {
-    UserDatabase db;
+    UserDatabase            db;
+    GroupMembershipDatabase gmDb;
 
     @Autowired
-    public SingleUserController(UserDatabase db) {
+    public SingleUserController(UserDatabase db, GroupMembershipDatabase gmDb) {
         this.db = db;
+        this.gmDb = gmDb;
     }
 
     /**
@@ -50,7 +54,9 @@ public class SingleUserController {
 
         try {
             User user = db.findById(id).get(0);
-            return user.toScimResource();
+            HashMap<String, Object> userMap = (HashMap<String, Object>) user.toScimResource();
+            DbUtils.enrichWithGroups(userMap, gmDb);
+            return userMap;
 
         } catch (Exception e) {
             response.setStatus(404);
@@ -97,14 +103,15 @@ public class SingleUserController {
             return scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
         }
 
-        int found = db.findById(id).size();
+        List<User> byId = db.findById(id);
+        int found = byId.size();
 
         if (found == 0) {
             return scimError("User '" + id + "' was not found.", Optional.of(404));
         }
 
         //Find user for update
-        User user = db.findById(id).get(0);
+        User user = byId.get(0);
 
         for(Map map : operations){
             if(map.get("op")==null && !map.get("op").equals("replace")){

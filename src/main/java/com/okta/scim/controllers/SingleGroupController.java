@@ -104,14 +104,15 @@ public class SingleGroupController {
             return scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
         }
 
-        int found = db.findById(id).size();
+        List<Group> byId = db.findById(id);
+        int found = byId.size();
 
         if (found == 0) {
             return scimError("Group '" + id + "' was not found.", Optional.of(404));
         }
 
         //Find user for update
-        Group group = db.findById(id).get(0);
+        Group group = byId.get(0);
 
         HashMap res = group.toScimResource();
 

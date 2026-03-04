@@ -15,6 +15,7 @@
 
 package com.okta.scim.controllers;
 
+import com.okta.scim.database.DbUtils;
 import com.okta.scim.database.GroupMembershipDatabase;
 import com.okta.scim.database.UserDatabase;
 import com.okta.scim.models.GroupMembership;
@@ -82,7 +83,7 @@ public class UsersController {
                     case "active":
                         users = db.findByActive(Boolean.valueOf(searchValue), pageRequest);
                         break;
-                    case "faimlyName":
+                    case "familyName":
                         users = db.findByFamilyName(searchValue, pageRequest);
                         break;
                     case "givenName":
@@ -112,19 +113,7 @@ public class UsersController {
         ArrayList<HashMap<String, Object>> resGN = new ArrayList<>();
 
         for (HashMap<String, Object> u: resG) {
-            PageRequest           pReq = PageRequest.of(0, Integer.MAX_VALUE);
-            Page<GroupMembership> pg   = gmDb.findByUserId(u.get("id").toString(), pReq);
-
-            if (pg.hasContent()) {
-                List<GroupMembership> gmList = pg.getContent();
-                ArrayList<Map<String, Object>> gms = new ArrayList<>();
-
-                for (GroupMembership gm : gmList) {
-                    gms.add(gm.toUserScimResource());
-                }
-
-                u.put("groups", gms);
-            }
+            DbUtils.enrichWithGroups(u, gmDb);
             resGN.add(u);
         }
 
@@ -133,6 +122,8 @@ public class UsersController {
 
         return res;
     }
+
+
 
     /**
      * Creates new {@link User} with given attributes

@@ -74,7 +74,7 @@ public class GroupsController {
             Pattern response = Pattern.compile(regex);
 
             Matcher match = response.matcher(filter);
-            Boolean found = match.find();
+            boolean found = match.find();
             if (found) {
                 String searchKeyName = match.group(1);
                 String searchValue = match.group(2);
