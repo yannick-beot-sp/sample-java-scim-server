@@ -75,6 +75,13 @@ public class User extends BaseModel {
     @Column(length=250)
     public String givenName;
 
+    /**
+     * The display name of the user
+     * Max length: 250
+     */
+    @Column(length=250)
+    public String displayName;
+
     public User() {}
 
     public User(Map<String, Object> resource){
@@ -105,6 +112,9 @@ public class User extends BaseModel {
             }
           this.userName = resource.get("userName").toString();
           this.active = (Boolean)resource.get("active");
+          if (resource.get("displayName") != null) {
+              this.displayName = resource.get("displayName").toString();
+          }
         } catch(Exception e) {
              System.out.println(e);
         }
@@ -123,6 +133,7 @@ public class User extends BaseModel {
         returnValue.put("id", this.id);
         returnValue.put("active", this.active);
         returnValue.put("userName", this.userName);
+        returnValue.put("displayName", this.displayName);
 
         // Name
         Map<String, Object> names = new HashMap<>();

@@ -1,8 +1,8 @@
 SET DATABASE SQL SYNTAX MYS TRUE;
-INSERT IGNORE INTO users (ID, USER_NAME, GIVEN_NAME, FAMILY_NAME, ACTIVE) VALUES
-  ('7510949d-afbd-4976-90f4-47f1b8a1e503', 'Aaron.Nichols', 'Aaron', 'Nichols',1),
-  ('4f5fc6f8-719e-43a6-89e1-bbdd6e639775', 'Adam.Kennedy', 'Adam', 'Kennedy',1),
-  ('13339394-d287-4599-ba34-a80d1b2730b0', 'Amanda.Ross', 'Amanda', 'Ross',1);
+INSERT IGNORE INTO users (ID, USER_NAME, GIVEN_NAME, FAMILY_NAME, ACTIVE, DISPLAY_NAME) VALUES
+  ('7510949d-afbd-4976-90f4-47f1b8a1e503', 'Aaron.Nichols', 'Aaron', 'Nichols',1, 'Aaron Nichols'),
+  ('4f5fc6f8-719e-43a6-89e1-bbdd6e639775', 'Adam.Kennedy', 'Adam', 'Kennedy',1, 'Adam Kennedy'),
+  ('13339394-d287-4599-ba34-a80d1b2730b0', 'Amanda.Ross', 'Amanda', 'Ross',1, 'Amanda Ross');
 
 
 INSERT IGNORE INTO groups (ID, DISPLAY_NAME) VALUES

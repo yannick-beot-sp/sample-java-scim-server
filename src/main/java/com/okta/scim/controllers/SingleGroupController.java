@@ -2,6 +2,7 @@ package com.okta.scim.controllers;
 
 import com.okta.scim.database.GroupDatabase;
 import com.okta.scim.database.GroupMembershipDatabase;
+import com.okta.scim.database.UserDatabase;
 import com.okta.scim.models.Group;
 import com.okta.scim.models.GroupMembership;
 import com.okta.scim.models.User;
@@ -9,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -24,10 +27,13 @@ public class SingleGroupController {
     GroupDatabase db;
     GroupMembershipDatabase gmDb;
 
+    UserDatabase userDb;
+
     @Autowired
-    public SingleGroupController(GroupDatabase db, GroupMembershipDatabase gmDb) {
+    public SingleGroupController(GroupDatabase db, GroupMembershipDatabase gmDb, UserDatabase userDb) {
         this.db = db;
         this.gmDb = gmDb;
+        this.userDb = userDb;
     }
 
     /**
@@ -145,19 +151,26 @@ public class SingleGroupController {
                     value = Arrays.asList((Map<String, Object>) ((Map<String, Object>) map.get("value")).get("members"));
                 }
 
-
-                if (value != null && !value.isEmpty()) {
+                if (!CollectionUtils.isEmpty(value)) {
                     for (Map val : value) {
                         PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
-                        Page<GroupMembership> gmPage = gmDb.findByGroupIdAndUserId(id, val.get("value").toString(), pageRequest);
-
+                        String userId = val.get("value").toString();
+                        if (!StringUtils.hasText(userId)) {
+                            continue;
+                        }
+                        Page<GroupMembership> gmPage = gmDb.findByGroupIdAndUserId(id, userId, pageRequest);
+                        // Already present?
                         if (gmPage.hasContent()) {
                             continue;
                         }
+                        userDb.findById(userId);
+
 
                         GroupMembership gm = new GroupMembership(val);
                         gm.id = UUID.randomUUID().toString();
                         gm.groupId = id;
+                        gm.groupDisplay = group.displayName;
+
                         gmDb.save(gm);
                     }
                 }
