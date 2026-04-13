@@ -15,8 +15,12 @@
     </div>
 
     <div class="row">
+        <!-- USERS -->
         <div class="col-sm-12">
-            <h2>Users</h2>
+            <div class="clearfix" style="margin-bottom:10px">
+                <h2 class="pull-left" style="margin-top:0">Users</h2>
+                <button class="btn btn-success pull-right" id="addUserBtn">+ Add User</button>
+            </div>
             <table id="userTable" class="table table-striped" data-order='[[ 1, "asc" ]]'>
                 <thead>
                     <tr>
@@ -25,6 +29,7 @@
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Active?</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -34,29 +39,57 @@
                         <td th:text="${user.familyName}">Family Name</td>
                         <td th:text="${user.givenName}">Given Name</td>
                         <td th:text="${user.active.toString()}">Active?</td>
+                        <td>
+                            <button class="btn btn-xs btn-primary edit-user-btn"
+                                    th:attr="data-id=${user.id},
+                                             data-username=${user.userName},
+                                             data-givenname=${user.givenName} ?: '',
+                                             data-familyname=${user.familyName} ?: '',
+                                             data-displayname=${user.displayName} ?: '',
+                                             data-active=${user.active}">Edit</button>
+                            <button class="btn btn-xs btn-danger delete-user-btn"
+                                    th:attr="data-id=${user.id},data-name=${user.userName}">Delete</button>
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- GROUPS -->
         <div class="col-sm-12">
-            <h2>Groups</h2>
+            <div class="clearfix" style="margin-bottom:10px">
+                <h2 class="pull-left" style="margin-top:0">Groups</h2>
+                <button class="btn btn-success pull-right" id="addGroupBtn">+ Add Group</button>
+            </div>
             <table id="groupTable" class="table table-striped" data-order='[[ 1, "asc" ]]'>
                 <thead>
                 <tr>
                     <th>Identifier</th>
                     <th>Display Name</th>
+                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:each="group : ${groups}">
                     <td th:text="${group.id}">Group ID</td>
                     <td th:text="${group.displayName}">Display Name</td>
+                    <td>
+                        <button class="btn btn-xs btn-primary edit-group-btn"
+                                th:attr="data-id=${group.id},data-displayname=${group.displayName}">Edit</button>
+                        <button class="btn btn-xs btn-danger delete-group-btn"
+                                th:attr="data-id=${group.id},data-name=${group.displayName}">Delete</button>
+                    </td>
                 </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- GROUP MEMBERSHIPS -->
         <div class="col-sm-12">
-            <h2>Group Memberships</h2>
+            <div class="clearfix" style="margin-bottom:10px">
+                <h2 class="pull-left" style="margin-top:0">Group Memberships</h2>
+                <button class="btn btn-success pull-right" id="addMembershipBtn">+ Add Membership</button>
+            </div>
             <table id="groupMembershipsTable" class="table table-striped" data-order='[[ 1, "asc" ]]'>
                 <thead>
                 <tr>
@@ -65,6 +98,7 @@
                     <th>User ID</th>
                     <th>Group Name</th>
                     <th>User Name</th>
+                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -74,10 +108,18 @@
                     <td th:text="${gm.userId}">User ID</td>
                     <td th:text="${gm.groupDisplay}">Group Name</td>
                     <td th:text="${gm.userDisplay}">User Name</td>
+                    <td>
+                        <button class="btn btn-xs btn-danger remove-membership-btn"
+                                th:attr="data-groupid=${gm.groupId},data-userid=${gm.userId},
+                                         data-groupname=${gm.groupDisplay} ?: '',
+                                         data-username=${gm.userDisplay} ?: ''">Remove</button>
+                    </td>
                 </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- TRANSACTIONS -->
         <div class="col-sm-12">
             <h2>Transactions</h2>
             <table id="logTable" class="table table-striped" data-order='[[ 0, "desc" ]]'>
@@ -113,6 +155,8 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- REQUESTS -->
         <div class="col-sm-12">
             <h2>Requests</h2>
             <table id="requestTable" class="table table-striped" data-order='[[ 0, "desc" ]]'>
@@ -134,6 +178,8 @@
         </div>
     </div>
 </div>
+
+<!-- ===================== TRANSACTION MODALS ===================== -->
 
 <div th:each="transaction : ${transactions}" th:id="${transaction.id}" class="modal fade" role="dialog">
     <div class="modal-dialog modal-lg">
@@ -207,6 +253,105 @@
     </div>
 </div>
 
+<!-- ===================== USER MODAL ===================== -->
+
+<div id="userModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 id="userModalTitle" class="modal-title">Add User</h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="userId" />
+                <div id="userModalError" class="alert alert-danger" style="display:none"></div>
+                <div class="form-group">
+                    <label>Username <span class="text-danger">*</span></label>
+                    <input type="text" id="userNameInput" class="form-control" placeholder="john.doe@example.com" />
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="givenNameInput" class="form-control" placeholder="John" />
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="familyNameInput" class="form-control" placeholder="Doe" />
+                </div>
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" id="userDisplayNameInput" class="form-control" placeholder="John Doe" />
+                </div>
+                <div class="checkbox">
+                    <label><input type="checkbox" id="userActiveInput" /> Active</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== GROUP MODAL ===================== -->
+
+<div id="groupModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 id="groupModalTitle" class="modal-title">Add Group</h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="groupId" />
+                <div id="groupModalError" class="alert alert-danger" style="display:none"></div>
+                <div class="form-group">
+                    <label>Display Name <span class="text-danger">*</span></label>
+                    <input type="text" id="groupDisplayNameInput" class="form-control" placeholder="Engineering" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveGroupBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== MEMBERSHIP MODAL ===================== -->
+
+<div id="membershipModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Add User to Group</h4>
+            </div>
+            <div class="modal-body">
+                <div id="membershipModalError" class="alert alert-danger" style="display:none"></div>
+                <div class="form-group">
+                    <label>Group <span class="text-danger">*</span></label>
+                    <select id="membershipGroupSelect" class="form-control">
+                        <option value="">-- Select a group --</option>
+                        <option th:each="group : ${groups}" th:value="${group.id}" th:text="${group.displayName}">Group</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>User <span class="text-danger">*</span></label>
+                    <select id="membershipUserSelect" class="form-control">
+                        <option value="">-- Select a user --</option>
+                        <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.userName}">User</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveMembershipBtn">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
@@ -224,10 +369,185 @@
             try {
                 content = JSON.parse(content);
                 content = JSON.stringify(content, null, '\t');
-            } catch (e) {
-
-            }
+            } catch (e) {}
             $(el).text(content);
+        });
+
+        // ---- USER OPERATIONS ----
+
+        $('#addUserBtn').on('click', function() {
+            $('#userId').val('');
+            $('#userNameInput').val('');
+            $('#givenNameInput').val('');
+            $('#familyNameInput').val('');
+            $('#userDisplayNameInput').val('');
+            $('#userActiveInput').prop('checked', false);
+            $('#userModalError').hide();
+            $('#userModalTitle').text('Add User');
+            $('#userModal').modal('show');
+        });
+
+        $(document).on('click', '.edit-user-btn', function() {
+            var btn = $(this);
+            $('#userId').val(btn.data('id'));
+            $('#userNameInput').val(btn.data('username') || '');
+            $('#givenNameInput').val(btn.data('givenname') || '');
+            $('#familyNameInput').val(btn.data('familyname') || '');
+            $('#userDisplayNameInput').val(btn.data('displayname') || '');
+            $('#userActiveInput').prop('checked', String(btn.data('active')) === 'true');
+            $('#userModalError').hide();
+            $('#userModalTitle').text('Edit User');
+            $('#userModal').modal('show');
+        });
+
+        $('#saveUserBtn').on('click', function() {
+            var id = $('#userId').val();
+            var userName = $('#userNameInput').val().trim();
+            if (!userName) {
+                $('#userModalError').text('Username is required.').show();
+                return;
+            }
+            var payload = {
+                schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
+                userName: userName,
+                name: {
+                    givenName: $('#givenNameInput').val(),
+                    familyName: $('#familyNameInput').val()
+                },
+                displayName: $('#userDisplayNameInput').val(),
+                active: $('#userActiveInput').is(':checked')
+            };
+            var url = id ? '/scim/v2/Users/' + id : '/scim/v2/Users';
+            var method = id ? 'PUT' : 'POST';
+            $.ajax({
+                url: url, method: method,
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function() { location.reload(); },
+                error: function(xhr) {
+                    $('#userModalError').text('Error: ' + (xhr.responseJSON && xhr.responseJSON.detail ? xhr.responseJSON.detail : xhr.responseText)).show();
+                }
+            });
+        });
+
+        $(document).on('click', '.delete-user-btn', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            if (confirm('Delete user "' + name + '"? This will also remove all group memberships.')) {
+                $.ajax({
+                    url: '/scim/v2/Users/' + id,
+                    method: 'DELETE',
+                    success: function() { location.reload(); },
+                    error: function(xhr) { alert('Error deleting user: ' + xhr.responseText); }
+                });
+            }
+        });
+
+        // ---- GROUP OPERATIONS ----
+
+        $('#addGroupBtn').on('click', function() {
+            $('#groupId').val('');
+            $('#groupDisplayNameInput').val('');
+            $('#groupModalError').hide();
+            $('#groupModalTitle').text('Add Group');
+            $('#groupModal').modal('show');
+        });
+
+        $(document).on('click', '.edit-group-btn', function() {
+            var btn = $(this);
+            $('#groupId').val(btn.data('id'));
+            $('#groupDisplayNameInput').val(btn.data('displayname') || '');
+            $('#groupModalError').hide();
+            $('#groupModalTitle').text('Edit Group');
+            $('#groupModal').modal('show');
+        });
+
+        $('#saveGroupBtn').on('click', function() {
+            var id = $('#groupId').val();
+            var displayName = $('#groupDisplayNameInput').val().trim();
+            if (!displayName) {
+                $('#groupModalError').text('Display Name is required.').show();
+                return;
+            }
+            var payload = {
+                schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'],
+                displayName: displayName
+            };
+            var url = id ? '/scim/v2/Groups/' + id : '/scim/v2/Groups';
+            var method = id ? 'PUT' : 'POST';
+            $.ajax({
+                url: url, method: method,
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function() { location.reload(); },
+                error: function(xhr) {
+                    $('#groupModalError').text('Error: ' + (xhr.responseJSON && xhr.responseJSON.detail ? xhr.responseJSON.detail : xhr.responseText)).show();
+                }
+            });
+        });
+
+        $(document).on('click', '.delete-group-btn', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            if (confirm('Delete group "' + name + '"? This will also remove all memberships.')) {
+                $.ajax({
+                    url: '/scim/v2/Groups/' + id,
+                    method: 'DELETE',
+                    success: function() { location.reload(); },
+                    error: function(xhr) { alert('Error deleting group: ' + xhr.responseText); }
+                });
+            }
+        });
+
+        // ---- MEMBERSHIP OPERATIONS ----
+
+        $('#addMembershipBtn').on('click', function() {
+            $('#membershipGroupSelect').val('');
+            $('#membershipUserSelect').val('');
+            $('#membershipModalError').hide();
+            $('#membershipModal').modal('show');
+        });
+
+        $('#saveMembershipBtn').on('click', function() {
+            var groupId = $('#membershipGroupSelect').val();
+            var userId = $('#membershipUserSelect').val();
+            if (!groupId || !userId) {
+                $('#membershipModalError').text('Please select both a group and a user.').show();
+                return;
+            }
+            $.ajax({
+                url: '/scim/v2/Groups/' + groupId,
+                method: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+                    Operations: [{ op: 'add', path: 'members', value: [{ value: userId }] }]
+                }),
+                success: function() { location.reload(); },
+                error: function(xhr) {
+                    $('#membershipModalError').text('Error: ' + (xhr.responseJSON && xhr.responseJSON.detail ? xhr.responseJSON.detail : xhr.responseText)).show();
+                }
+            });
+        });
+
+        $(document).on('click', '.remove-membership-btn', function() {
+            var groupId = $(this).data('groupid');
+            var userId = $(this).data('userid');
+            var groupName = $(this).data('groupname');
+            var userName = $(this).data('username');
+            if (confirm('Remove user "' + userName + '" from group "' + groupName + '"?')) {
+                $.ajax({
+                    url: '/scim/v2/Groups/' + groupId,
+                    method: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+                        Operations: [{ op: 'remove', value: { members: [{ value: userId }] } }]
+                    }),
+                    success: function() { location.reload(); },
+                    error: function(xhr) { alert('Error removing membership: ' + xhr.responseText); }
+                });
+            }
         });
     });
 </script>

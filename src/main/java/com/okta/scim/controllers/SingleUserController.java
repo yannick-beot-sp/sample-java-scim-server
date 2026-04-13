@@ -18,9 +18,12 @@ package com.okta.scim.controllers;
 import com.okta.scim.database.DbUtils;
 import com.okta.scim.database.GroupMembershipDatabase;
 import com.okta.scim.database.UserDatabase;
+import com.okta.scim.models.GroupMembership;
 import com.okta.scim.models.User;
 import com.okta.scim.utils.ScimUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,7 +78,29 @@ public class SingleUserController {
                                            @PathVariable String id) {
         User user = db.findById(id).get(0);
         user.update(payload);
+        db.save(user);
         return user.toScimResource();
+    }
+
+    /**
+     * Delete {@link User} by identifier, also removes all group memberships
+     * @param id {@link User#id}
+     * @param response HTTP Response
+     * @return empty map with 204 status, or error map with 404
+     */
+    @RequestMapping(method = RequestMethod.DELETE)
+    public @ResponseBody Map singleUserDelete(@PathVariable String id, HttpServletResponse response) {
+        List<User> users = db.findById(id);
+        if (users.isEmpty()) {
+            response.setStatus(404);
+            return ScimUtils.scimError("User not found", Optional.of(404));
+        }
+        PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<GroupMembership> gms = gmDb.findByUserId(id, pageRequest);
+        gmDb.deleteAll(gms.getContent());
+        db.delete(users.get(0));
+        response.setStatus(204);
+        return new HashMap<>();
     }
 
     /**

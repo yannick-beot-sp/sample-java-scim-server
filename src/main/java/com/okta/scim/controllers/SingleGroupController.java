@@ -82,7 +82,29 @@ public class SingleGroupController {
                                             @PathVariable String id) {
         Group group = db.findById(id).get(0);
         group.update(payload);
+        db.save(group);
         return group.toScimResource();
+    }
+
+    /**
+     * Delete {@link Group} by identifier, also removes all group memberships
+     * @param id {@link Group#id}
+     * @param response HTTP Response
+     * @return empty map with 204 status, or error map with 404
+     */
+    @RequestMapping(method = RequestMethod.DELETE)
+    public @ResponseBody Map singleGroupDelete(@PathVariable String id, HttpServletResponse response) {
+        List<Group> groups = db.findById(id);
+        if (groups.isEmpty()) {
+            response.setStatus(404);
+            return ScimUtils.scimError("Group not found", Optional.of(404));
+        }
+        PageRequest pageRequest = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<GroupMembership> gms = gmDb.findByGroupId(id, pageRequest);
+        gmDb.deleteAll(gms.getContent());
+        db.delete(groups.get(0));
+        response.setStatus(204);
+        return new HashMap<>();
     }
 
     /**
