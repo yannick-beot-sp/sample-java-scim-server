@@ -107,17 +107,12 @@ public class GroupsController {
             PageRequest pReq = PageRequest.of(0, Integer.MAX_VALUE);
             Page<GroupMembership> pg = gmDb.findByGroupId(g.get("id").toString(), pReq);
 
-            if (!pg.hasContent()) {
-                continue;
-            }
-
-            List<GroupMembership> gmList = pg.getContent();
             ArrayList<Map<String, Object>> gms = new ArrayList<>();
-
-            for (GroupMembership gm: gmList) {
-                gms.add(gm.toScimResource());
+            if (pg.hasContent()) {
+                for (GroupMembership gm: pg.getContent()) {
+                    gms.add(gm.toScimResource());
+                }
             }
-
             g.put("members", gms);
             resGN.add(g);
         }
