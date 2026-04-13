@@ -1,0 +1,19 @@
+#@baseurl=http://seri.company16917-poc.demohub.sailpointtechnologies.com:8080/sample-java-scim-server/scim/v2
+@baseurl=http://localhost:8080/scim/v2
+
+GET {{baseurl}}/Users/7510949d-afbd-4976-90f4-47f1b8a1e503
+
+
+
+PATCH {{baseurl}}/Users/7510949d-afbd-4976-90f4-47f1b8a1e503
+Content-Type: application/scim+json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "replace",
+      "path": "active",
+      "value": false
+    }
+  ]
+}   

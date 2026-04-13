@@ -25,7 +25,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
-import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -114,28 +113,60 @@ public class SingleUserController {
         //Find user for update
         User user = byId.get(0);
 
-        for(Map map : operations){
-            if(map.get("op")==null && !map.get("op").equals("replace")){
+        for (Map map : operations) {
+            String op = map.get("op") != null ? map.get("op").toString().toLowerCase() : null;
+            if (op == null || (!op.equals("add") && !op.equals("replace") && !op.equals("remove"))) {
                 continue;
             }
-            Map<String, Object> value = (Map)map.get("userId");
 
-            // Use Java reflection to find and set User attribute
-            if(value != null) {
-                for (Map.Entry key : value.entrySet()) {
-                    try {
-                        Field field = user.getClass().getDeclaredField(key.getKey().toString());
-                        field.set(user, key.getValue());
-                    } catch (NoSuchFieldException | IllegalAccessException e) {
-                        // Error - Do not update field
-                    }
+            String path = map.get("path") != null ? map.get("path").toString() : null;
+            Object value = map.get("value");
+
+            if (path != null) {
+                applyPatch(user, path, value, op);
+            } else if (value instanceof Map) {
+                // No path: value is a map of attribute names to values
+                for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
+                    applyPatch(user, entry.getKey(), entry.getValue(), op);
                 }
-
-                db.save(user);
             }
         }
+        db.save(user);
+        HashMap<String, Object> userMap = (HashMap<String, Object>) user.toScimResource();
+        DbUtils.enrichWithGroups(userMap, gmDb);
+        return userMap;
+    }
 
-        return user.toScimResource();
+    private void applyPatch(User user, String path, Object value, String op) {
+        if (path.startsWith("name.")) {
+            String subAttr = path.substring(5);
+            String strVal = value != null ? value.toString() : null;
+            switch (subAttr) {
+                case "givenName":  user.givenName  = strVal; break;
+                case "familyName": user.familyName = strVal; break;
+                case "middleName": user.middleName = strVal; break;
+            }
+            return;
+        }
+        if (path.equals("name") && value instanceof Map) {
+            Map<String, Object> nameMap = (Map<String, Object>) value;
+            if (nameMap.containsKey("givenName"))  user.givenName  = nameMap.get("givenName")  != null ? nameMap.get("givenName").toString()  : null;
+            if (nameMap.containsKey("familyName")) user.familyName = nameMap.get("familyName") != null ? nameMap.get("familyName").toString() : null;
+            if (nameMap.containsKey("middleName")) user.middleName = nameMap.get("middleName") != null ? nameMap.get("middleName").toString() : null;
+            return;
+        }
+        switch (path) {
+            case "active":
+                user.active = "remove".equals(op) ? false : Boolean.valueOf(value.toString());
+                break;
+            case "userName":
+                user.userName = value != null ? value.toString() : null;
+                break;
+            case "displayName":
+                user.displayName = value != null ? value.toString() : null;
+                break;
+            // Unknown attributes are silently ignored per RFC 7644 §3.5.2
+        }
     }
 
 }

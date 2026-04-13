@@ -224,14 +224,10 @@ class UsersIT extends ScimIntegrationTestBase {
         JSONObject created = createUser(userName);
         String userId = created.getString("id");
         assertTrue(created.getBoolean("active"), "User should start active");
-
-        // Build PATCH body — the server reads the value from the "userId" key (non-standard)
-        Map<String, Object> valueMap = new LinkedHashMap<>();
-        valueMap.put("active", false);
-
+        
         Map<String, Object> operation = new LinkedHashMap<>();
         operation.put("op",     "replace");
-        operation.put("userId", valueMap);
+        operation.put("active", false);
 
         Map<String, Object> patchBody = new LinkedHashMap<>();
         patchBody.put("schemas",    Collections.singletonList(
