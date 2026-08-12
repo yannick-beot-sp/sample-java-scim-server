@@ -18,6 +18,7 @@ package com.okta.scim.controllers;
 import com.okta.scim.database.DbUtils;
 import com.okta.scim.database.GroupMembershipDatabase;
 import com.okta.scim.database.UserDatabase;
+import com.okta.scim.models.Email;
 import com.okta.scim.models.GroupMembership;
 import com.okta.scim.models.User;
 import com.okta.scim.utils.ScimUtils;
@@ -164,7 +165,28 @@ public class SingleUserController {
         return userMap;
     }
 
+    @SuppressWarnings("unchecked")
     private void applyPatch(User user, String path, Object value, String op) {
+        if (path.equals("emails")) {
+            if ("remove".equals(op)) {
+                user.emails.clear();
+            } else if (value instanceof List) {
+                List<Email> parsed = Email.parseList((List<Map<String, Object>>) value);
+                if ("add".equals(op)) {
+                    user.emails.addAll(parsed);
+                } else {
+                    user.emails = parsed;
+                }
+            }
+            return;
+        }
+        if (path.startsWith("emails[")) {
+            // RFC 7644 §3.5.2: e.g. emails[type eq "work"] or emails[value eq "x@y.com"]
+            if ("remove".equals(op)) {
+                removeEmailsByFilter(user, path);
+            }
+            return;
+        }
         if (path.startsWith("name.")) {
             String subAttr = path.substring(5);
             String strVal = value != null ? value.toString() : null;
@@ -194,6 +216,20 @@ public class SingleUserController {
                 break;
             // Unknown attributes are silently ignored per RFC 7644 §3.5.2
         }
+    }
+
+    private void removeEmailsByFilter(User user, String path) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(\\w+)\\s+eq\\s+\"([^\"]+)\"", java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(path);
+        if (!m.find()) {
+            return;
+        }
+        String attr = m.group(1);
+        String val = m.group(2);
+        user.emails.removeIf(e ->
+                "value".equalsIgnoreCase(attr) ? val.equalsIgnoreCase(e.value)
+                        : "type".equalsIgnoreCase(attr) && val.equalsIgnoreCase(e.type));
     }
 
 }

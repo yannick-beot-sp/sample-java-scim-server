@@ -44,12 +44,18 @@ class UsersIT extends ScimIntegrationTestBase {
         name.put("familyName", "User");
         name.put("middleName", "");
 
+        Map<String, Object> email = new LinkedHashMap<>();
+        email.put("value",   userName);
+        email.put("type",    "work");
+        email.put("primary", true);
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("schemas",     Collections.singletonList("urn:ietf:params:scim:schemas:core:2.0:User"));
         payload.put("userName",    userName);
         payload.put("name",        name);
         payload.put("displayName", "Test User");
         payload.put("active",      true);
+        payload.put("emails",      Collections.singletonList(email));
         return payload;
     }
 
@@ -109,6 +115,10 @@ class UsersIT extends ScimIntegrationTestBase {
         assertTrue(body.has("meta"),   "Expected 'meta' in response");
         assertTrue(body.has("name"),   "Expected 'name' in response");
         assertTrue(body.has("emails"), "Expected 'emails' in response");
+        JSONObject email = body.getJSONArray("emails").getJSONObject(0);
+        assertEquals(userName, email.getString("value"));
+        assertEquals("work", email.getString("type"));
+        assertTrue(email.getBoolean("primary"));
     }
 
     @Test
@@ -190,12 +200,18 @@ class UsersIT extends ScimIntegrationTestBase {
         name.put("familyName", "Name");
         name.put("middleName", "M");
 
+        Map<String, Object> homeEmail = new LinkedHashMap<>();
+        homeEmail.put("value",   "updated." + userName);
+        homeEmail.put("type",    "home");
+        homeEmail.put("primary", true);
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("schemas",     Collections.singletonList("urn:ietf:params:scim:schemas:core:2.0:User"));
         payload.put("userName",    userName);
         payload.put("name",        name);
         payload.put("displayName", "Updated Name");
         payload.put("active",      true);
+        payload.put("emails",      Collections.singletonList(homeEmail));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -209,6 +225,10 @@ class UsersIT extends ScimIntegrationTestBase {
         assertEquals("Updated", body.getJSONObject("name").getString("givenName"));
         assertEquals("Name",    body.getJSONObject("name").getString("familyName"));
         assertEquals("Updated Name", body.getString("displayName"));
+        JSONArray emails = body.getJSONArray("emails");
+        assertEquals(1, emails.length(), "PUT should replace the emails list, not append to it");
+        assertEquals("updated." + userName, emails.getJSONObject(0).getString("value"));
+        assertEquals("home", emails.getJSONObject(0).getString("type"));
     }
 
     // -----------------------------------------------------------------------
@@ -291,6 +311,60 @@ class UsersIT extends ScimIntegrationTestBase {
 
     @Test
     @Order(10)
+    @DisplayName("PATCH /Users/{id} can add and remove emails")
+    void patchUserAddAndRemoveEmail() throws Exception {
+        String userName = uniqueUserName();
+        JSONObject created = createUser(userName);
+        String userId = created.getString("id");
+
+        String homeAddress = "home." + userName;
+        Map<String, Object> homeEmail = new LinkedHashMap<>();
+        homeEmail.put("value", homeAddress);
+        homeEmail.put("type",  "home");
+
+        Map<String, Object> addOp = new LinkedHashMap<>();
+        addOp.put("op",    "add");
+        addOp.put("path",  "emails");
+        addOp.put("value", Collections.singletonList(homeEmail));
+
+        Map<String, Object> addBody = new LinkedHashMap<>();
+        addBody.put("schemas",    Collections.singletonList(
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"));
+        addBody.put("Operations", Collections.singletonList(addOp));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> addResponse = restTemplate.exchange(
+                url(BASE + "/" + userId), HttpMethod.PATCH,
+                new HttpEntity<>(addBody, headers), String.class);
+
+        assertEquals(HttpStatus.OK, addResponse.getStatusCode());
+        JSONArray emailsAfterAdd = new JSONObject(addResponse.getBody()).getJSONArray("emails");
+        assertEquals(2, emailsAfterAdd.length(), "Expected original + added email");
+
+        // RFC 7644 §3.5.2: filtered remove
+        Map<String, Object> removeOp = new LinkedHashMap<>();
+        removeOp.put("op",   "remove");
+        removeOp.put("path", "emails[type eq \"home\"]");
+
+        Map<String, Object> removeBody = new LinkedHashMap<>();
+        removeBody.put("schemas",    Collections.singletonList(
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"));
+        removeBody.put("Operations", Collections.singletonList(removeOp));
+
+        ResponseEntity<String> removeResponse = restTemplate.exchange(
+                url(BASE + "/" + userId), HttpMethod.PATCH,
+                new HttpEntity<>(removeBody, headers), String.class);
+
+        assertEquals(HttpStatus.OK, removeResponse.getStatusCode());
+        JSONObject afterRemove = new JSONObject(removeResponse.getBody());
+        JSONArray emailsAfterRemove = afterRemove.getJSONArray("emails");
+        assertEquals(1, emailsAfterRemove.length(), "Expected the 'home' email to be removed");
+        assertEquals(userName, emailsAfterRemove.getJSONObject(0).getString("value"));
+    }
+
+    @Test
+    @Order(11)
     @DisplayName("PATCH /Users/{id} without schemas returns error")
     void patchUserWithoutSchemasReturnsError() throws Exception {
         String userName = uniqueUserName();
@@ -323,7 +397,7 @@ class UsersIT extends ScimIntegrationTestBase {
     }
 
     @Test
-    @Order(11)
+    @Order(12)
     @DisplayName("GET /Users?filter=active eq \"false\" returns only inactive users")
     void filterUsersByActiveStatus() throws Exception {
         // Create one inactive user via POST (active=false)

@@ -15,9 +15,13 @@
 
 package com.okta.scim.models;
 
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.Entity;
+import javax.persistence.JoinColumn;
 import javax.persistence.Table;
 
 import java.util.Map;
@@ -82,6 +86,14 @@ public class User extends BaseModel {
     @Column(length=250)
     public String displayName;
 
+    /**
+     * The email addresses of the user
+     * RFC 7643 §4.1.2 — multi-valued, at most one MAY be marked primary
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_emails", joinColumns = @JoinColumn(name = "user_id"))
+    public List<Email> emails = new ArrayList<>();
+
     public User() {}
 
     public User(Map<String, Object> resource){
@@ -90,33 +102,36 @@ public class User extends BaseModel {
 
     /**
      * Updates {@link User} object from JSON {@link Map}
+     * Each attribute is applied independently so that a payload omitting one
+     * (e.g. "name") does not prevent the others (e.g. "emails") from being saved.
      * @param resource JSON {@link Map} of {@link User}
      */
+    @SuppressWarnings("unchecked")
     public void update(Map<String, Object> resource) {
-        try{
-            Map<String, Object> names = (Map<String, Object>)resource.get("name");
-            for(String subName : names.keySet()){
-                switch (subName) {
-                    case "givenName":
-                        this.givenName = names.get(subName).toString();
-                        break;
-                    case "familyName":
-                        this.familyName = names.get(subName).toString();
-                        break;
-                    case "middleName":
-                        this.middleName = names.get(subName).toString();
-                        break;
-                    default:
-                        break;
-                }
+        Object nameObj = resource.get("name");
+        if (nameObj instanceof Map) {
+            Map<String, Object> names = (Map<String, Object>) nameObj;
+            if (names.get("givenName") != null) {
+                this.givenName = names.get("givenName").toString();
             }
-          this.userName = resource.get("userName").toString();
-          this.active = (Boolean)resource.get("active");
-          if (resource.get("displayName") != null) {
-              this.displayName = resource.get("displayName").toString();
-          }
-        } catch(Exception e) {
-             System.out.println(e);
+            if (names.get("familyName") != null) {
+                this.familyName = names.get("familyName").toString();
+            }
+            if (names.get("middleName") != null) {
+                this.middleName = names.get("middleName").toString();
+            }
+        }
+        if (resource.get("userName") != null) {
+            this.userName = resource.get("userName").toString();
+        }
+        if (resource.get("active") != null) {
+            this.active = Boolean.valueOf(resource.get("active").toString());
+        }
+        if (resource.get("displayName") != null) {
+            this.displayName = resource.get("displayName").toString();
+        }
+        if (resource.get("emails") instanceof List) {
+            this.emails = Email.parseList((List<Map<String, Object>>) resource.get("emails"));
         }
     }
 
@@ -148,13 +163,13 @@ public class User extends BaseModel {
         meta.put("location", ("/scim/v2/Users/" + this.id));
         returnValue.put("meta", meta);
 
-        List<Map<String, Object>> emails = new ArrayList<>();
-        Map<String, Object> primaryEmail = new HashMap<>();
-        primaryEmail.put("primary", true);
-        primaryEmail.put("value", userName);
-        primaryEmail.put("type", "work");
-        emails.add(primaryEmail);
-        returnValue.put("emails", emails);
+        if (this.emails != null && !this.emails.isEmpty()) {
+            List<Map<String, Object>> emails = new ArrayList<>();
+            for (Email email : this.emails) {
+                emails.add(email.toScimResource());
+            }
+            returnValue.put("emails", emails);
+        }
 
         return returnValue;
     }
