@@ -1,0 +1,30 @@
+services:
+  scim-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:hsqldb:file:/data/scim
+    volumes:
+      - scim-data:/data
+    restart: unless-stopped
+
+  # Use when the WAR is already built in target/
+  # docker compose --profile prebuilt up --build
+  scim-server-war:
+    profiles: [prebuilt]
+    build:
+      context: .
+      dockerfile: Dockerfile.war
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:hsqldb:file:/data/scim
+    volumes:
+      - scim-data:/data
+    restart: unless-stopped
+
+volumes:
+  scim-data:
