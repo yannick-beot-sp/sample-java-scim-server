@@ -53,6 +53,7 @@
                                              data-givenname=${user.givenName} ?: '',
                                              data-familyname=${user.familyName} ?: '',
                                              data-displayname=${user.displayName} ?: '',
+                                             data-emails=${user.emailsJson},
                                              data-active=${user.active}">Edit</button>
                             <button class="btn btn-xs btn-danger delete-user-btn"
                                     th:attr="data-id=${user.id},data-name=${user.userName}">Delete</button>
@@ -288,6 +289,25 @@
                     <label>Display Name</label>
                     <input type="text" id="userDisplayNameInput" class="form-control" placeholder="John Doe" />
                 </div>
+                <div class="form-group">
+                    <label>Emails</label>
+                    <div class="row">
+                        <div class="col-xs-6">
+                            <input type="email" id="emailValueInput" class="form-control" placeholder="john.doe@example.com" />
+                        </div>
+                        <div class="col-xs-3">
+                            <select id="emailTypeInput" class="form-control">
+                                <option value="work">work</option>
+                                <option value="home">home</option>
+                                <option value="other">other</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-3">
+                            <button type="button" class="btn btn-default btn-block" id="addEmailBtn">Add</button>
+                        </div>
+                    </div>
+                    <ul id="emailList" class="list-group" style="margin-top:10px;margin-bottom:0"></ul>
+                </div>
                 <div class="checkbox">
                     <label><input type="checkbox" id="userActiveInput" /> Active</label>
                 </div>
@@ -382,12 +402,108 @@
 
         // ---- USER OPERATIONS ----
 
+        var userEmails = [];
+
+        function ensureSinglePrimary() {
+            var primaryIndex = -1;
+            for (var i = 0; i < userEmails.length; i++) {
+                if (userEmails[i].primary) {
+                    if (primaryIndex === -1) {
+                        primaryIndex = i;
+                    } else {
+                        userEmails[i].primary = false;
+                    }
+                }
+            }
+            if (userEmails.length > 0 && primaryIndex === -1) {
+                userEmails[0].primary = true;
+            }
+        }
+
+        function renderEmailList() {
+            ensureSinglePrimary();
+            var list = $('#emailList');
+            list.empty();
+            if (userEmails.length === 0) {
+                return;
+            }
+            userEmails.forEach(function(email, index) {
+                var item = $('<li class="list-group-item"></li>');
+                var label = $('<label class="radio-inline" style="margin-right:12px"></label>');
+                var radio = $('<input type="radio" name="emailPrimary" />')
+                    .prop('checked', !!email.primary)
+                    .on('change', function() {
+                        userEmails.forEach(function(e, i) { e.primary = (i === index); });
+                        renderEmailList();
+                    });
+                label.append(radio).append(' Primary');
+                var text = $('<span></span>').text(email.value + ' (' + (email.type || 'work') + ')');
+                var removeBtn = $('<button type="button" class="btn btn-xs btn-danger pull-right">Remove</button>')
+                    .on('click', function() {
+                        var wasPrimary = userEmails[index].primary;
+                        userEmails.splice(index, 1);
+                        if (wasPrimary && userEmails.length > 0) {
+                            userEmails[0].primary = true;
+                        }
+                        renderEmailList();
+                    });
+                item.append(removeBtn).append(label).append(text);
+                list.append(item);
+            });
+        }
+
+        function resetEmailForm(emails) {
+            userEmails = (emails || []).map(function(email) {
+                return {
+                    value: email.value,
+                    type: email.type || 'work',
+                    primary: !!email.primary
+                };
+            });
+            ensureSinglePrimary();
+            $('#emailValueInput').val('');
+            $('#emailTypeInput').val('work');
+            renderEmailList();
+        }
+
+        $('#addEmailBtn').on('click', function() {
+            var value = $('#emailValueInput').val().trim();
+            if (!value) {
+                $('#userModalError').text('Email address is required to add an email.').show();
+                return;
+            }
+            var duplicate = userEmails.some(function(email) {
+                return email.value.toLowerCase() === value.toLowerCase();
+            });
+            if (duplicate) {
+                $('#userModalError').text('This email is already in the list.').show();
+                return;
+            }
+            $('#userModalError').hide();
+            userEmails.push({
+                value: value,
+                type: $('#emailTypeInput').val() || 'work',
+                primary: userEmails.length === 0
+            });
+            $('#emailValueInput').val('');
+            $('#emailTypeInput').val('work');
+            renderEmailList();
+        });
+
+        $('#emailValueInput').on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                $('#addEmailBtn').click();
+            }
+        });
+
         $('#addUserBtn').on('click', function() {
             $('#userId').val('');
             $('#userNameInput').val('');
             $('#givenNameInput').val('');
             $('#familyNameInput').val('');
             $('#userDisplayNameInput').val('');
+            resetEmailForm([]);
             $('#userActiveInput').prop('checked', false);
             $('#userModalError').hide();
             $('#userModalTitle').text('Add User');
@@ -396,11 +512,19 @@
 
         $(document).on('click', '.edit-user-btn', function() {
             var btn = $(this);
+            var emails = [];
+            try {
+                var raw = btn.attr('data-emails');
+                emails = raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                emails = [];
+            }
             $('#userId').val(btn.data('id'));
             $('#userNameInput').val(btn.data('username') || '');
             $('#givenNameInput').val(btn.data('givenname') || '');
             $('#familyNameInput').val(btn.data('familyname') || '');
             $('#userDisplayNameInput').val(btn.data('displayname') || '');
+            resetEmailForm(emails);
             $('#userActiveInput').prop('checked', String(btn.data('active')) === 'true');
             $('#userModalError').hide();
             $('#userModalTitle').text('Edit User');
@@ -414,6 +538,12 @@
                 $('#userModalError').text('Username is required.').show();
                 return;
             }
+            var pendingEmail = $('#emailValueInput').val().trim();
+            if (pendingEmail) {
+                $('#userModalError').text('Click Add to include the email before saving, or clear the field.').show();
+                return;
+            }
+            ensureSinglePrimary();
             var payload = {
                 schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
                 userName: userName,
@@ -422,6 +552,13 @@
                     familyName: $('#familyNameInput').val()
                 },
                 displayName: $('#userDisplayNameInput').val(),
+                emails: userEmails.map(function(email) {
+                    return {
+                        value: email.value,
+                        type: email.type || 'work',
+                        primary: !!email.primary
+                    };
+                }),
                 active: $('#userActiveInput').is(':checked')
             };
             var url = id ? '/scim/v2/Users/' + id : '/scim/v2/Users';

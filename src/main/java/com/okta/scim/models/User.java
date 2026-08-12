@@ -173,4 +173,39 @@ public class User extends BaseModel {
 
         return returnValue;
     }
+
+    /**
+     * JSON array of emails for the web UI edit form ({@code data-emails} attribute).
+     */
+    public String getEmailsJson() {
+        StringBuilder sb = new StringBuilder("[");
+        if (this.emails != null) {
+            boolean first = true;
+            for (Email email : this.emails) {
+                if (!first) {
+                    sb.append(',');
+                }
+                first = false;
+                sb.append('{')
+                        .append("\"value\":").append(quoteJson(email.value))
+                        .append(",\"type\":").append(quoteJson(email.type != null ? email.type : "work"))
+                        .append(",\"primary\":").append(email.primary != null && email.primary)
+                        .append('}');
+            }
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    private static String quoteJson(String value) {
+        if (value == null) {
+            return "null";
+        }
+        return "\"" + value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t") + "\"";
+    }
 }
