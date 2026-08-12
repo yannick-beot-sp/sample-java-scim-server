@@ -111,37 +111,36 @@ public class SingleUserController {
      */
     @RequestMapping(method = RequestMethod.PATCH)
     public @ResponseBody Map singleUserPatch(@RequestBody Map<String, Object> payload,
-                                             @PathVariable String id) {
+                                             @PathVariable String id,
+                                             HttpServletResponse response) {
         List schema = (List)payload.get("schemas");
         List<Map> operations = (List)payload.get("Operations");
 
+        // RFC 7644 §3.5.2 PatchOp
         if(schema == null){
-            return ScimUtils.scimError("Payload must contain schema attribute.", Optional.of(400));
+            return ScimUtils.scimError("Payload must contain schema attribute.", 400, response);
         }
         if(operations == null){
-            return ScimUtils.scimError("Payload must contain operations attribute.", Optional.of(400));
+            return ScimUtils.scimError("Payload must contain operations attribute.", 400, response);
         }
 
-        //Verify schema
         String schemaPatchOp = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
         if (!schema.contains(schemaPatchOp)){
-            return ScimUtils.scimError("The 'schemas' type in this request is not supported.", Optional.of(501));
+            return ScimUtils.scimError("The 'schemas' type in this request is not supported.", 400, response);
         }
 
         List<User> byId = db.findById(id);
-        int found = byId.size();
-
-        if (found == 0) {
-            return ScimUtils.scimError("User '" + id + "' was not found.", Optional.of(404));
+        if (byId.isEmpty()) {
+            return ScimUtils.scimError("User '" + id + "' was not found.", 404, response);
         }
 
-        //Find user for update
         User user = byId.get(0);
 
         for (Map map : operations) {
+            // RFC 7644 §3.5.2: op is case-insensitive; invalid op → 400
             String op = map.get("op") != null ? map.get("op").toString().toLowerCase() : null;
             if (op == null || (!op.equals("add") && !op.equals("replace") && !op.equals("remove"))) {
-                continue;
+                return ScimUtils.scimError("Unsupported PATCH op: " + map.get("op"), 400, response);
             }
 
             String path = map.get("path") != null ? map.get("path").toString() : null;
@@ -150,10 +149,13 @@ public class SingleUserController {
             if (path != null) {
                 applyPatch(user, path, value, op);
             } else if (value instanceof Map) {
-                // No path: value is a map of attribute names to values
+                // No path: value is a partial resource (RFC 7644 §3.5.2)
                 for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
                     applyPatch(user, entry.getKey(), entry.getValue(), op);
                 }
+            } else {
+                return ScimUtils.scimError(
+                        "PATCH operation must include 'path' or a 'value' object.", 400, response);
             }
         }
         db.save(user);

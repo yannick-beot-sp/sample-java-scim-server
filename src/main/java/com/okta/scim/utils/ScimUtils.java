@@ -14,15 +14,18 @@
 
 package com.okta.scim.utils;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.*;
 
 /**
- * Utility class for SCIM response helpers
+ * Utility class for SCIM response helpers (RFC 7644)
  */
 public class ScimUtils {
 
     /**
-     * Output custom error message with response code
+     * Output custom error message with response code.
+     * Per RFC 7644 §3.12, {@code status} MUST be a string.
+     *
      * @param message     SCIM error message
      * @param status_code Response status code
      * @return JSON {@link Map} representing a SCIM error response
@@ -34,8 +37,19 @@ public class ScimUtils {
         returnValue.put("schemas", schemas);
         returnValue.put("detail", message);
 
-        // Set default to 500
-        returnValue.put("status", status_code.orElse(500));
+        int code = status_code.orElse(500);
+        // RFC 7644 §3.12: status is a string
+        returnValue.put("status", String.valueOf(code));
         return returnValue;
+    }
+
+    /**
+     * Build a SCIM error body and set the matching HTTP status on the response.
+     */
+    public static Map scimError(String message, int statusCode, HttpServletResponse response) {
+        if (response != null) {
+            response.setStatus(statusCode);
+        }
+        return scimError(message, Optional.of(statusCode));
     }
 }

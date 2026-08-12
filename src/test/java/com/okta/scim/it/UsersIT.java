@@ -224,10 +224,12 @@ class UsersIT extends ScimIntegrationTestBase {
         JSONObject created = createUser(userName);
         String userId = created.getString("id");
         assertTrue(created.getBoolean("active"), "User should start active");
-        
+
+        // RFC 7644 §3.5.2: op + path + value
         Map<String, Object> operation = new LinkedHashMap<>();
-        operation.put("op",     "replace");
-        operation.put("active", false);
+        operation.put("op",    "replace");
+        operation.put("path",  "active");
+        operation.put("value", false);
 
         Map<String, Object> patchBody = new LinkedHashMap<>();
         patchBody.put("schemas",    Collections.singletonList(
@@ -255,12 +257,11 @@ class UsersIT extends ScimIntegrationTestBase {
         JSONObject created = createUser(userName);
         String userId = created.getString("id");
 
-        // Deactivate
-        Map<String, Object> deactivateValue = new LinkedHashMap<>();
-        deactivateValue.put("active", false);
+        // Deactivate — RFC path form
         Map<String, Object> deactivateOp = new LinkedHashMap<>();
-        deactivateOp.put("op",     "replace");
-        deactivateOp.put("userId", deactivateValue);
+        deactivateOp.put("op",    "replace");
+        deactivateOp.put("path",  "active");
+        deactivateOp.put("value", false);
         Map<String, Object> deactivateBody = new LinkedHashMap<>();
         deactivateBody.put("schemas",    Collections.singletonList(
                 "urn:ietf:params:scim:api:messages:2.0:PatchOp"));
@@ -270,12 +271,10 @@ class UsersIT extends ScimIntegrationTestBase {
         restTemplate.exchange(url(BASE + "/" + userId), HttpMethod.PATCH,
                 new HttpEntity<>(deactivateBody, headers), String.class);
 
-        // Reactivate
-        Map<String, Object> activateValue = new LinkedHashMap<>();
-        activateValue.put("active", true);
+        // Reactivate — Okta no-path form (also RFC §3.5.2)
         Map<String, Object> activateOp = new LinkedHashMap<>();
-        activateOp.put("op",     "replace");
-        activateOp.put("userId", activateValue);
+        activateOp.put("op",    "replace");
+        activateOp.put("value", Collections.singletonMap("active", true));
         Map<String, Object> activateBody = new LinkedHashMap<>();
         activateBody.put("schemas",    Collections.singletonList(
                 "urn:ietf:params:scim:api:messages:2.0:PatchOp"));
@@ -300,8 +299,9 @@ class UsersIT extends ScimIntegrationTestBase {
 
         // Omit schemas field
         Map<String, Object> operation = new LinkedHashMap<>();
-        operation.put("op", "replace");
-        operation.put("userId", Collections.singletonMap("active", false));
+        operation.put("op",    "replace");
+        operation.put("path",  "active");
+        operation.put("value", false);
 
         Map<String, Object> patchBody = new LinkedHashMap<>();
         patchBody.put("Operations", Collections.singletonList(operation));
@@ -312,9 +312,14 @@ class UsersIT extends ScimIntegrationTestBase {
                 url(BASE + "/" + userId), HttpMethod.PATCH,
                 new HttpEntity<>(patchBody, headers), String.class);
 
-        // Controller returns a SCIM error (not an HTTP 4xx itself, but an error body)
-        String body = response.getBody();
-        assertTrue(body.contains("schema"), "Expected a SCIM error mentioning 'schema'");
+        // RFC 7644 §3.12: HTTP status must match the SCIM error status
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        JSONObject body = new JSONObject(response.getBody());
+        assertEquals("urn:ietf:params:scim:api:messages:2.0:Error",
+                body.getJSONArray("schemas").getString(0));
+        assertEquals("400", body.getString("status"));
+        assertTrue(body.getString("detail").toLowerCase().contains("schema"),
+                "Expected a SCIM error mentioning 'schema'");
     }
 
     @Test

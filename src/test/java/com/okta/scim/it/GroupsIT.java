@@ -323,14 +323,10 @@ class GroupsIT extends ScimIntegrationTestBase {
         addOp.put("value", Collections.singletonList(memberEntry));
         patchGroup(groupId, Collections.singletonList(addOp));
 
-        // Now remove the member using the "value.members" form
-        Map<String, Object> memberToRemove = new LinkedHashMap<>();
-        memberToRemove.put("value", userId);
-        Map<String, Object> removeValue = new LinkedHashMap<>();
-        removeValue.put("members", memberToRemove);
+        // RFC 7644 / Okta: path filter members[value eq "id"]
         Map<String, Object> removeOp = new LinkedHashMap<>();
-        removeOp.put("op",    "remove");
-        removeOp.put("value", removeValue);
+        removeOp.put("op",   "remove");
+        removeOp.put("path", "members[value eq \"" + userId + "\"]");
 
         ResponseEntity<String> response = patchGroup(groupId, Collections.singletonList(removeOp));
 
@@ -358,9 +354,12 @@ class GroupsIT extends ScimIntegrationTestBase {
 
         ResponseEntity<String> response = patchGroup(groupId, Collections.singletonList(addOp));
 
-        // Server returns a SCIM error body
-        String body = response.getBody();
-        assertTrue(body.contains("User not found") || body.contains("not found"),
+        // RFC 7644 §3.12: HTTP status must match the SCIM error
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        JSONObject body = new JSONObject(response.getBody());
+        assertEquals("urn:ietf:params:scim:api:messages:2.0:Error",
+                body.getJSONArray("schemas").getString(0));
+        assertTrue(body.getString("detail").toLowerCase().contains("not found"),
                 "Expected 'User not found' error in response");
     }
 }

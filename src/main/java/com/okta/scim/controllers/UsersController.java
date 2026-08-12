@@ -59,15 +59,16 @@ public class UsersController {
         // If not given count, default to 100
         int count = (params.get("count") != null) ? Integer.parseInt(params.get("count")) : 100;
 
-        // If not given startIndex, default to 1
+        // RFC 7644 §3.4.2: startIndex is 1-based
         int startIndex = (params.get("startIndex") != null) ? Integer.parseInt(params.get("startIndex")) : 1;
 
         if(startIndex < 1){
             startIndex = 1;
         }
-        startIndex -=1;
 
-        PageRequest pageRequest = PageRequest.of(startIndex, count);
+        // Spring Data page number is 0-based; convert from SCIM startIndex
+        int pageNumber = (startIndex - 1) / count;
+        PageRequest pageRequest = PageRequest.of(pageNumber, count);
 
         String filter = params.get("filter");
         if (filter != null && filter.contains("eq")) {
@@ -89,9 +90,12 @@ public class UsersController {
                     case "givenName":
                         users = db.findByGivenName(searchValue, pageRequest);
                         break;
-                    default:
-                        // Defaults to username lookup
+                    case "userName":
                         users = db.findByUsername(searchValue, pageRequest);
+                        break;
+                    default:
+                        // Unknown attribute → empty result (do not silently remap)
+                        users = Page.empty(pageRequest);
                         break;
                 }
             } else {
@@ -102,11 +106,11 @@ public class UsersController {
         }
 
         List<User> foundUsers = users.getContent();
-        int totalResults = foundUsers.size();
+        // RFC 7644: totalResults is the total number of matching resources
+        long totalResults = users.getTotalElements();
 
-        // Convert optional values into Optionals for ListResponse Constructor
         ListResponse<User> returnValue = new ListResponse<>(foundUsers, Optional.of(startIndex),
-                                        Optional.of(count), Optional.of(totalResults));
+                                        Optional.of(count), Optional.of((int) totalResults));
 
         HashMap<String, Object> res = returnValue.toScimResource();
         ArrayList<HashMap<String, Object>> resG  = (ArrayList) res.get("Resources");
