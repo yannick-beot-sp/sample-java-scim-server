@@ -1,4 +1,3 @@
-#@baseurl=http://seri.company16917-poc.demohub.sailpointtechnologies.com:8080/sample-java-scim-server/scim/v2
 @baseurl=http://localhost:8080/scim/v2
 
 GET {{baseurl}}/Users/7510949d-afbd-4976-90f4-47f1b8a1e503
